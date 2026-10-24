@@ -1,0 +1,1691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TruthLens — Suspicious Message and Scam Analyzer</title>
+  <meta name="description" content="A Second Year B.Tech Computer Engineering Mini Project for Introduction to Cyber Security. Detects scam indicators in messages with transparent client-side heuristics." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Reset & Base Styles */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    :root {
+      --bg-main: #030712;
+      --bg-card: #0b1120;
+      --bg-input: #020617;
+      --border-color: #1e293b;
+      --border-highlight: #334155;
+      --cyan-primary: #06b6d4;
+      --cyan-hover: #22d3ee;
+      --teal-primary: #14b8a6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --danger-bg: rgba(136, 19, 55, 0.4);
+      --danger-border: #e11d48;
+      --danger-text: #fda4af;
+      --warning-bg: rgba(120, 53, 15, 0.4);
+      --warning-border: #d97706;
+      --warning-text: #fde68a;
+      --safe-bg: rgba(6, 78, 59, 0.4);
+      --safe-border: #059669;
+      --safe-text: #a7f3d0;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    code, pre, .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    a {
+      color: var(--cyan-primary);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    /* Layout */
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+    /* Navigation */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(3, 7, 18, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+    }
+    .nav-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 4rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+    .brand-logo {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #0891b2, #14b8a6, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.25);
+    }
+    .brand-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .brand-title span {
+      color: var(--cyan-primary);
+    }
+    .brand-tagline {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .nav-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 0.5rem 0.85rem;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      background: rgba(30, 41, 59, 0.6);
+      color: var(--text-main);
+    }
+    .nav-btn.active {
+      background: var(--bg-card);
+      color: var(--cyan-primary);
+      border-color: rgba(6, 182, 212, 0.4);
+      box-shadow: 0 2px 8px rgba(6, 182, 212, 0.15);
+    }
+    .privacy-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: rgba(20, 184, 166, 0.1);
+      border: 1px solid rgba(20, 184, 166, 0.3);
+      color: var(--teal-primary);
+      padding: 0.25rem 0.65rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* Cards & Containers */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      margin-bottom: 1.5rem;
+    }
+    .hero {
+      background: linear-gradient(180deg, #0f172a 0%, #081026 100%);
+      border: 1px solid #1e293b;
+      border-radius: 1.25rem;
+      padding: 2rem;
+      margin-top: 1.5rem;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: var(--cyan-hover);
+      font-size: 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 0.75rem;
+    }
+    .hero-title {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.5rem;
+    }
+    .hero-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--cyan-hover);
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      max-width: 800px;
+      line-height: 1.6;
+    }
+
+    /* Preset Samples */
+    .sample-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .sample-btn {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .sample-btn:hover {
+      background: #1e293b;
+      border-color: var(--cyan-primary);
+      transform: translateY(-1px);
+    }
+    .sample-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.35rem;
+    }
+    .sample-tag {
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.35rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .sample-tag.high {
+      background: var(--danger-bg);
+      color: var(--danger-text);
+      border: 1px solid var(--danger-border);
+    }
+    .sample-tag.caution {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border: 1px solid var(--warning-border);
+    }
+    .sample-tag.low {
+      background: var(--safe-bg);
+      color: var(--safe-text);
+      border: 1px solid var(--safe-border);
+    }
+    .sample-name {
+      font-size: 0.825rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .sample-category {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+    }
+
+    /* Input & Textarea */
+    .textarea-wrapper {
+      position: relative;
+      margin: 1rem 0;
+    }
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    textarea:focus {
+      border-color: var(--cyan-primary);
+      box-shadow: 0 0 0 1px rgba(6, 182, 212, 0.4);
+    }
+    .btn-group {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0891b2, #0d9488);
+      color: white;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 0.75rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #06b6d4, #14b8a6);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: var(--text-muted);
+      border: 1px solid #334155;
+      padding: 0.7rem 1.25rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+      color: var(--text-main);
+    }
+    .validation-alert {
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger-text);
+      padding: 0.75rem 1rem;
+      border-radius: 0.6rem;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    /* Risk Meter Gauge Card */
+    .risk-meter-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    @media (min-width: 768px) {
+      .risk-meter-container {
+        flex-direction: row;
+      }
+    }
+    .gauge-svg-wrapper {
+      position: relative;
+      width: 150px;
+      height: 150px;
+      flex-shrink: 0;
+    }
+    .gauge-center-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .gauge-score {
+      font-size: 2.25rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1;
+    }
+    .gauge-max {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-top: 0.25rem;
+    }
+    .meter-details {
+      flex: 1;
+    }
+    .meter-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .risk-category-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .risk-category-badge.high {
+      background: var(--danger-bg);
+      border: 1px solid var(--danger-border);
+      color: var(--danger-text);
+    }
+    .risk-category-badge.caution {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--warning-text);
+    }
+    .risk-category-badge.low {
+      background: var(--safe-bg);
+      border: 1px solid var(--safe-border);
+      color: var(--safe-text);
+    }
+    .meter-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+    }
+    .meter-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 1rem;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 0.5rem;
+      background: #1e293b;
+      border-radius: 9999px;
+      overflow: hidden;
+      margin-top: 0.5rem;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+      transition: width 0.6s ease-out;
+    }
+    .progress-bar-fill.high { background: #f43f5e; }
+    .progress-bar-fill.caution { background: #f59e0b; }
+    .progress-bar-fill.low { background: #10b981; }
+
+    .educational-disclaimer {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(2, 6, 23, 0.8);
+      border: 1px solid var(--border-color);
+      font-size: 0.775rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .educational-disclaimer strong {
+      color: var(--cyan-hover);
+    }
+
+    /* Highlighter box */
+    .highlight-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    mark.suspicious-mark {
+      background: rgba(244, 63, 94, 0.25);
+      border-bottom: 2px solid #f43f5e;
+      color: #fecdd3;
+      padding: 0.15rem 0.35rem;
+      border-radius: 0.25rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    mark.suspicious-mark.med {
+      background: rgba(245, 158, 11, 0.25);
+      border-bottom: 2px solid #f59e0b;
+      color: #fde68a;
+    }
+    mark.suspicious-mark.low {
+      background: rgba(6, 182, 212, 0.25);
+      border-bottom: 2px solid #06b6d4;
+      color: #a5f3fc;
+    }
+
+    /* Indicator Cards */
+    .indicator-card {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.2s ease;
+    }
+    .indicator-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .indicator-title {
+      font-size: 0.925rem;
+      font-weight: 700;
+    }
+    .indicator-badge {
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.25rem;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .trigger-phrase {
+      display: inline-block;
+      background: #020617;
+      border: 1px solid var(--border-color);
+      color: var(--cyan-hover);
+      font-family: 'JetBrains Mono', monospace;
+      padding: 0.15rem 0.45rem;
+      border-radius: 0.35rem;
+      font-size: 0.775rem;
+      margin: 0.35rem 0;
+    }
+    .indicator-explanation {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .indicator-action {
+      background: rgba(20, 184, 166, 0.1);
+      border-left: 3px solid var(--teal-primary);
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.35rem;
+      font-size: 0.775rem;
+      color: var(--safe-text);
+    }
+
+    /* Checklist */
+    .action-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .action-item {
+      background: rgba(2, 6, 23, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.85rem;
+      display: flex;
+      gap: 0.75rem;
+    }
+    .action-icon {
+      color: var(--teal-primary);
+      flex-shrink: 0;
+    }
+    .action-title {
+      font-size: 0.825rem;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+    .action-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Tab views */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Quiz */
+    .quiz-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .quiz-q {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .quiz-btn {
+      width: 100%;
+      text-align: left;
+      background: #020617;
+      border: 1px solid var(--border-color);
+      border-radius: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      color: var(--text-muted);
+      font-size: 0.825rem;
+      margin-bottom: 0.4rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .quiz-btn:hover {
+      background: #1e293b;
+      color: var(--text-main);
+    }
+    .quiz-btn.correct {
+      background: var(--safe-bg);
+      border-color: var(--safe-border);
+      color: var(--safe-text);
+      font-weight: 700;
+    }
+    .quiz-btn.wrong {
+      background: var(--danger-bg);
+      border-color: var(--danger-border);
+      color: var(--danger-text);
+    }
+    .quiz-feedback {
+      margin-top: 0.5rem;
+      padding: 0.65rem;
+      border-radius: 0.4rem;
+      font-size: 0.775rem;
+      display: none;
+    }
+
+    /* History Table / List */
+    .history-item {
+      background: rgba(2, 6, 23, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 0.75rem;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s ease;
+    }
+    .history-item:hover {
+      border-color: var(--cyan-primary);
+    }
+
+    /* Footer */
+    footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border-color);
+      padding: 1.5rem 0;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .footer-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    /* Print styling */
+    @media print {
+      body {
+        background: white !important;
+        color: black !important;
+      }
+      header, .sample-grid, .btn-group, footer, .nav-tabs {
+        display: none !important;
+      }
+      .card, .hero {
+        border: 1px solid #ccc !important;
+        background: none !important;
+        box-shadow: none !important;
+        color: black !important;
+      }
+      .highlight-box {
+        background: #f8fafc !important;
+        color: black !important;
+        border: 1px solid #ccc !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <header>
+    <div class="container nav-wrapper">
+      <div class="brand" onclick="switchTab('analyzer')">
+        <div class="brand-logo">
+          <!-- Shield & Lens SVG -->
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">Truth<span>Lens</span></div>
+          <div class="brand-tagline">Pause. Analyze. Stay Safe.</div>
+        </div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="nav-btn active" id="btn-tab-analyzer" onclick="switchTab('analyzer')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Analyzer
+        </button>
+        <button class="nav-btn" id="btn-tab-rules" onclick="switchTab('rules')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          Detection Rules
+        </button>
+        <button class="nav-btn" id="btn-tab-safety" onclick="switchTab('safety')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 12 2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+          Safety & Quiz
+        </button>
+        <button class="nav-btn" id="btn-tab-history" onclick="switchTab('history')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Scan History (<span id="history-badge">0</span>)
+        </button>
+        <button class="nav-btn" id="btn-tab-about" onclick="switchTab('about')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Project Info
+        </button>
+      </nav>
+
+      <div class="privacy-badge" title="All analysis is evaluated locally in JavaScript">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>100% In-Browser Privacy</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="container" style="flex: 1; padding-top: 1rem; padding-bottom: 2rem;">
+
+    <!-- TAB 1: MESSAGE ANALYZER -->
+    <div id="tab-analyzer" class="tab-content active">
+      <div class="hero">
+        <div class="hero-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Second Year B.Tech Computer Engineering Mini Project
+        </div>
+        <h1 class="hero-title">TruthLens Scam Analyzer</h1>
+        <div class="hero-subtitle">"Pause. Analyze. Stay Safe."</div>
+        <p class="hero-desc">
+          Identify deceptive scam indicators in SMS messages, emails, WhatsApp notices, and digital payment requests.
+          TruthLens examines text using transparent cybersecurity heuristics, highlights dangerous phrases, calculates a risk score, and recommends safe countermeasures.
+        </p>
+      </div>
+
+      <!-- Quick Samples -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.85rem; color: var(--text-main);">Quick Demonstration Samples:</strong>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">Click to load into analyzer</span>
+        </div>
+        <div class="sample-grid" id="samples-container"></div>
+      </div>
+
+      <!-- Message Input Card -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label for="message-input" style="font-size: 0.9rem; font-weight: 700;">Enter or Paste Message Text</label>
+          <span id="char-counter" style="font-size: 0.75rem; color: var(--text-dim);" class="mono">0 characters</span>
+        </div>
+
+        <div class="textarea-wrapper">
+          <textarea
+            id="message-input"
+            placeholder="Paste suspicious SMS, WhatsApp message, email excerpt, or payment notification here... (e.g. 'Dear Customer, your bank account will be suspended within 24 hours. Update KYC immediately at http://bit.ly/bank-kyc or enter your UPI PIN to claim reward.')"
+          ></textarea>
+        </div>
+
+        <div id="validation-error" class="validation-alert"></div>
+
+        <div class="btn-group">
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn-primary" onclick="triggerAnalyze()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Analyze Message
+            </button>
+            <button class="btn-secondary" onclick="clearInput()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Clear
+            </button>
+          </div>
+          <span style="font-size: 0.75rem; color: var(--text-dim);">
+            Deterministic regex heuristics • 0 external server calls
+          </span>
+        </div>
+      </div>
+
+      <!-- Results Section (Dynamic) -->
+      <div id="results-section" style="display: none;">
+
+        <!-- 1. Risk Meter -->
+        <div class="card" id="risk-meter-card">
+          <div class="risk-meter-container">
+            <!-- Circular Gauge -->
+            <div class="gauge-svg-wrapper">
+              <svg width="150" height="150" viewBox="0 0 160 160" style="transform: rotate(-90deg);">
+                <circle cx="80" cy="80" r="62" stroke="#1e293b" stroke-width="12" fill="none"/>
+                <circle id="gauge-circle-fill" cx="80" cy="80" r="62" stroke="#06b6d4" stroke-width="12" stroke-dasharray="389.5" stroke-dashoffset="389.5" stroke-linecap="round" fill="none" style="transition: stroke-dashoffset 0.8s ease-out;"/>
+              </svg>
+              <div class="gauge-center-text">
+                <span class="gauge-score" id="meter-score-text">0</span>
+                <span class="gauge-max">/ 100 Score</span>
+              </div>
+            </div>
+
+            <!-- Meter Explanation -->
+            <div class="meter-details">
+              <div class="meter-badge-row">
+                <span class="risk-category-badge" id="meter-category-badge">Lower Risk Indicators</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted);" class="mono" id="meter-warnings-count">0 Warning Signs</span>
+              </div>
+              <h2 class="meter-title" id="meter-headline">Assessment Headline</h2>
+              <p class="meter-desc" id="meter-summary-text">Summary of findings.</p>
+
+              <!-- Progress bar -->
+              <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--text-dim);" class="mono">
+                <span>0 (Lower Risk)</span>
+                <span>30 (Caution)</span>
+                <span>60 (High Risk)</span>
+                <span>100</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="meter-linear-fill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Educational Disclaimer -->
+          <div class="educational-disclaimer">
+            <strong>Educational Assessment Disclaimer: </strong>
+            This result is an automated educational assessment, not proof that a message is safe or fraudulent. Verify important requests through official channels. A low score must never be described as a guarantee of safety.
+          </div>
+        </div>
+
+        <!-- 2. Message Highlight Inspector -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <strong style="font-size: 0.9rem;">Analyzed Message Inspector (Highlighted Phrases)</strong>
+            <span style="font-size: 0.75rem; color: var(--text-dim);">Text rendered safely without HTML injection</span>
+          </div>
+          <div class="highlight-box" id="highlighted-message-view"></div>
+        </div>
+
+        <!-- 3. Warning Signs Breakdown -->
+        <div class="card">
+          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 1rem;">
+            Detected Warning Signs (<span id="detected-signs-count">0</span>)
+          </h3>
+          <div id="indicators-list"></div>
+        </div>
+
+        <!-- 4. Recommended Actions -->
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <h3 style="font-size: 0.95rem; font-weight: 700;">Recommended Safe Actions</h3>
+            <button class="btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.75rem;" onclick="window.print()">
+              Print / Save PDF
+            </button>
+          </div>
+          <div class="action-grid">
+            <div class="action-item">
+              <div class="action-icon">✓</div>
+              <div>
+                <div class="action-title">Do Not Share OTPs or Passwords</div>
+                <div class="action-desc">Banks and genuine institutions never demand one-time passwords or security credentials over SMS, phone, or email.</div>
+              </div>
+            </div>
+            <div class="action-item">
+              <div class="action-icon">✓</div>
+              <div>
+                <div class="action-title">UPI PIN Is Only For Paying</div>
+                <div class="action-desc">Crucial digital payment rule: You never enter your UPI PIN to receive money or refunds. Entering a PIN always debits funds.</div>
+              </div>
+            </div>
+            <div class="action-item">
+              <div class="action-icon">✓</div>
+              <div>
+                <div class="action-title">Independently Verify Sender</div>
+                <div class="action-desc">Never call phone numbers printed inside unexpected SMS warnings. Look up verified customer care numbers on official apps or bank cards.</div>
+              </div>
+            </div>
+            <div class="action-item">
+              <div class="action-icon">✓</div>
+              <div>
+                <div class="action-title">Report Fraud Immediately</div>
+                <div class="action-desc">National Cybercrime Helpline: Dial <strong style="color: var(--cyan-hover);">1930</strong> (India) or register on <a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a>.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 2: DETECTION RULES -->
+    <div id="tab-rules" class="tab-content">
+      <div class="hero">
+        <h2 class="hero-title" style="font-size: 1.75rem;">Transparent Detection Heuristics</h2>
+        <p class="hero-desc">
+          TruthLens avoids unexplainable black-box classification. Every risk point is scored from transparent regular expressions and psychological pressure indicators.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">Core Rule Categories</h3>
+        <div id="rules-catalog" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem;"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: CYBER SAFETY & QUIZ -->
+    <div id="tab-safety" class="tab-content">
+      <div class="hero">
+        <h2 class="hero-title" style="font-size: 1.75rem;">Cyber Safety Guidelines & Interactive Quiz</h2>
+        <p class="hero-desc">
+          Learn essential defense mechanisms against social engineering, deceptive collect requests, and phishing lures.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 1rem; font-size: 1rem;">Core Cyber Hygiene Principles</h3>
+        <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.8;">
+          <li><strong style="color: var(--text-main);">Never share OTPs, passwords or UPI PINs:</strong> Treat these like private house keys.</li>
+          <li><strong style="color: var(--text-main);">Verify unexpected payment and refund requests:</strong> A PIN is exclusively for sending funds.</li>
+          <li><strong style="color: var(--text-main);">Check the sender's identity independently:</strong> Spoofed SMS headers and display names are easily faked.</li>
+          <li><strong style="color: var(--text-main);">Avoid unknown links and attachments:</strong> Shortened URLs (.bit.ly, .tinyurl) hide real destinations.</li>
+          <li><strong style="color: var(--text-main);">Enable Multi-Factor Authentication (MFA):</strong> Use authenticator apps instead of SMS OTPs where possible.</li>
+          <li><strong style="color: var(--text-main);">Report suspected cybercrime early:</strong> Call 1930 within the "Golden Hour" to freeze fund transfers.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom: 0.5rem; font-size: 1rem;">Interactive Quiz: Test Your Scam Radar</h3>
+        <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">Answer the following scenario questions to evaluate your cybersecurity readiness:</p>
+        <div id="quiz-container"></div>
+      </div>
+    </div>
+
+    <!-- TAB 4: SCAN HISTORY -->
+    <div id="tab-history" class="tab-content">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div>
+            <h2 style="font-size: 1.25rem; font-weight: 700;">Recent Scan History</h2>
+            <p style="font-size: 0.775rem; color: var(--text-muted);">Stored privately in your browser's localStorage with numbers redacted.</p>
+          </div>
+          <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;" onclick="confirmClearHistory()">
+            Clear History
+          </button>
+        </div>
+        <div id="history-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB 5: ABOUT PROJECT (B.TECH) -->
+    <div id="tab-about" class="tab-content">
+      <div class="hero">
+        <div class="hero-pill">Academic Project Dossier</div>
+        <h2 class="hero-title" style="font-size: 1.75rem;">TruthLens — Suspicious Message and Scam Analyzer</h2>
+        <div class="hero-subtitle">Second Year B.Tech Computer Engineering Mini Project</div>
+        <p class="hero-desc">Course: Introduction to Cyber Security</p>
+      </div>
+
+      <div class="card" style="line-height: 1.7; font-size: 0.875rem;">
+        <h3 style="font-size: 1rem; color: var(--cyan-hover); margin-bottom: 0.5rem;">1. Problem Statement</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+          People frequently receive suspicious messages through SMS, email, social media and digital payment platforms. Many users struggle to recognise common scam indicators and may disclose sensitive information or lose money.
+        </p>
+
+        <h3 style="font-size: 1rem; color: var(--cyan-hover); margin-bottom: 0.5rem;">2. Proposed Solution</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+          A browser-based application that checks pasted messages against predefined security rules, highlights potential warning signs, calculates an indicative risk score, and provides actionable safety recommendations.
+        </p>
+
+        <h3 style="font-size: 1rem; color: var(--cyan-hover); margin-bottom: 0.5rem;">3. Technology Used</h3>
+        <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+          HTML5, CSS3, and Vanilla JavaScript (100% Client-Side DOM architecture with zero external APIs, zero server storage, and localStorage history).
+        </p>
+
+        <h3 style="font-size: 1rem; color: var(--cyan-hover); margin-bottom: 0.5rem;">4. Syllabus Mapping</h3>
+        <ul style="color: var(--text-muted); padding-left: 1.25rem; margin-bottom: 1.25rem;">
+          <li><strong style="color: var(--text-main);">Unit II: Cyber Crimes and Cyber Law</strong> — Credential phishing, identity theft, unauthorized access, and IT Act 2000 provisions (Sec 66C/66D).</li>
+          <li><strong style="color: var(--text-main);">Unit III: Social Media Overview and Security</strong> — Impersonation, task-based employment scams on Telegram/WhatsApp, URL shorteners, and social engineering.</li>
+          <li><strong style="color: var(--text-main);">Unit IV: E-Commerce and Digital Payments</strong> — UPI transaction mechanisms, collect requests, refund lures, and payment security principles.</li>
+        </ul>
+
+        <h3 style="font-size: 1rem; color: var(--cyan-hover); margin-bottom: 0.5rem;">5. Expected Outcomes</h3>
+        <p style="color: var(--text-muted);">
+          Improved awareness of phishing, impersonation, social engineering and payment fraud, together with safer online decision-making.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container footer-wrapper">
+      <div>
+        <strong style="color: var(--text-main);">TruthLens</strong> — Second Year B.Tech Computer Engineering Mini Project
+      </div>
+      <div>
+        National Cyber Crime Helpline: <strong style="color: var(--cyan-primary);">1930</strong> | <a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT LOGIC ENGINE                     -->
+  <!-- ========================================== -->
+  <script>
+    /* 1. PREDEFINED DETECTION RULES */
+    const DETECTION_RULES = [
+      {
+        id: 'cred-otp',
+        name: 'OTP Disclose / Forward Request',
+        category: 'Credential & Secret Theft',
+        severity: 'high',
+        weight: 35,
+        regex: /\b(share\s+(?:your\s+)?(?:otp|one[- ]time\s+password)|send\s+(?:the\s+)?otp|enter\s+(?:your\s+)?otp|forward\s+(?:the\s+)?otp|verify\s+(?:with\s+)?otp|provide\s+(?:your\s+)?otp)\b/i,
+        explanation: 'Genuine institutions, banks, and payment gateways strictly advise that OTPs should never be disclosed. Requesting an OTP is the #1 indicator of account takeover.',
+        action: 'Never disclose OTPs to anyone. Banks and genuine apps will never ask you to read out or forward an OTP.'
+      },
+      {
+        id: 'cred-pin',
+        name: 'Sensitive PIN / Password Solicitation',
+        category: 'Credential & Secret Theft',
+        severity: 'high',
+        weight: 40,
+        regex: /\b(enter\s+(?:your\s+)?(?:upi\s+pin|atm\s+pin|mpin|password|cvv)|share\s+(?:your\s+)?(?:password|pin|cvv)|disclose\s+(?:your\s+)?pin|netbanking\s+password)\b/i,
+        explanation: 'Requests to share or enter a UPI PIN, ATM PIN, or CVV in unofficial portals are direct attempts to drain bank accounts.',
+        action: 'Cancel any transaction requesting your PIN or password outside of official mobile bank applications.'
+      },
+      {
+        id: 'upi-receive-trap',
+        name: 'UPI Reverse Payment Trap (PIN to Receive)',
+        category: 'Reverse Payment & UPI Traps',
+        severity: 'high',
+        weight: 40,
+        regex: /\b(enter\s+(?:upi\s+)?pin\s+to\s+(?:receive|claim|accept|credit)|scan\s+qr\s+(?:code\s+)?to\s+(?:receive|get\s+money|get\s+refund)|accept\s+money\s+enter\s+pin|approve\s+collect\s+request\s+to\s+receive)\b/i,
+        explanation: 'Fundamental UPI rule: You NEVER enter a UPI PIN to receive money or get a refund. Entering a PIN always authorizes funds leaving your bank account.',
+        action: 'Decline the collect request immediately. Entering your PIN will instantly deduct money from your account.'
+      },
+      {
+        id: 'upi-refund-lure',
+        name: 'Instant Cashback / Refund Collect Request',
+        category: 'Reverse Payment & UPI Traps',
+        severity: 'medium',
+        weight: 25,
+        regex: /\b(pending\s+(?:refund|cashback)\s+of\s+rs|claim\s+your\s+refund\s+via\s+upi|phonepe\s+cashback\s+reward|gpay\s+scratch\s+card\s+reward)\b/i,
+        explanation: 'Scammers send UPI collect requests disguised as cashback or refunds. Approving them with a PIN transfers your money to the attacker.',
+        action: 'Do not approve unexpected collect requests on Google Pay, PhonePe, or Paytm.'
+      },
+      {
+        id: 'urgency-threat',
+        name: 'Account Suspension Threat / Manufactured Urgency',
+        category: 'Urgency & Coercive Threats',
+        severity: 'high',
+        weight: 30,
+        regex: /\b(account\s+(?:will\s+be\s+)?(?:suspended|blocked|deactivated|closed|frozen)\s+(?:within|in)\s+\d+\s*(?:hours|hrs|mins|minutes)?|immediate\s+action\s+required|within\s+24\s*(?:hours|hrs)|deactivated\s+today)\b/i,
+        explanation: 'Fabricated urgency is a psychological social engineering lever used to trigger panic so victims act before thinking critically.',
+        action: 'Pause and verify. Real banks provide formal notices with reasonable grace periods, never ultimatum SMS messages.'
+      },
+      {
+        id: 'utility-threat',
+        name: 'Utility Disconnection Threat (Power / SIM)',
+        category: 'Urgency & Coercive Threats',
+        severity: 'high',
+        weight: 35,
+        regex: /\b(electricity\s+(?:power\s+)?will\s+be\s+(?:disconnected|cut\s+off)\s+tonight|sim\s+(?:card\s+)?will\s+be\s+(?:deactivated|blocked)\s+today|bill\s+update\s+contact\s+officer)\b/i,
+        explanation: 'Electricity and SIM disconnection scams exploit essential daily needs to force quick payments or calls to fraudulent mobile numbers.',
+        action: 'Check your official electricity provider bill or telecom app directly. Do not call personal mobile numbers in an SMS.'
+      },
+      {
+        id: 'prize-lottery',
+        name: 'Unsolicited Lottery / Lucky Draw Win',
+        category: 'Prize, Lottery & Advance Fee',
+        severity: 'high',
+        weight: 30,
+        regex: /\b(congratulations\s+(?:you\s+have\s+)?(?:won|selected)|won\s+(?:a\s+)?(?:lottery|lucky\s+draw|cash\s+prize|jackpot)|kaun\s+banega\s+crorepati\s+lottery|kbc\s+lucky\s+draw)\b/i,
+        explanation: 'Advance-Fee Fraud: Scammers notify victims of winning prizes in contests they never participated in, enticing them into fraudulent fees.',
+        action: 'Remember: You cannot win a competition or lottery you never entered. Delete and disregard.'
+      },
+      {
+        id: 'prize-advance-fee',
+        name: 'Advance Processing Fee / Tax Requirement',
+        category: 'Prize, Lottery & Advance Fee',
+        severity: 'high',
+        weight: 35,
+        regex: /\b(pay\s+(?:a\s+)?(?:processing|clearance|registration|handling|tax)\s+fee|deposit\s+rs\b.*(?:to\s+receive|to\s+claim|before\s+release)|transfer\s+money\s+to\s+receive\s+(?:refund|prize))\b/i,
+        explanation: 'Any prize or refund that requires an upfront fee or advance payment to release the funds is an unmistakable financial scam.',
+        action: 'Never send money to receive a prize or grant.'
+      },
+      {
+        id: 'link-shortener',
+        name: 'Obfuscated / Shortened URL',
+        category: 'Suspicious Links & Domains',
+        severity: 'medium',
+        weight: 25,
+        regex: /\b(https?:\/\/(?:bit\.ly|tinyurl\.com|t\.co|is\.gd|cutt\.ly|shorturl\.at|rb\.gy)\/[a-zA-Z0-9_\-]+)\b/i,
+        explanation: 'Link shorteners mask the true domain and server, preventing victims from identifying phishing landing pages.',
+        action: 'Avoid clicking shortened links in unsolicited messages. Visit the service directly by typing its official address.'
+      },
+      {
+        id: 'link-suspicious-tld',
+        name: 'Suspicious TLD / Unofficial Phishing Domain',
+        category: 'Suspicious Links & Domains',
+        severity: 'medium',
+        weight: 25,
+        regex: /\b(https?:\/\/[a-zA-Z0-9.\-]+\.(?:xyz|top|info|tk|cf|ga|gq|ml|buzz|work|site)\/[a-zA-Z0-9_\-\.\/]*)\b/i,
+        explanation: 'Cybercriminals frequently register disposable, cheap domain extensions (.xyz, .top, .tk) to host phishing login portals.',
+        action: 'Verify domain spelling carefully. Official banks use secure domains like .bank, .gov.in, or established .com/.co.in.'
+      },
+      {
+        id: 'impersonate-kyc',
+        name: 'Mandatory KYC / PAN / Aadhaar Update Prompt',
+        category: 'Impersonation & Brand Spoofing',
+        severity: 'medium',
+        weight: 25,
+        regex: /\b(update\s+(?:your\s+)?(?:kyc|pan\s+card|aadhaar\s+card)|link\s+(?:your\s+)?(?:pan\s+with\s+aadhaar|aadhaar\s+to\s+bank)|complete\s+your\s+kyc\s+verification)\b/i,
+        explanation: 'KYC renewal phishing is widespread. Scammers impersonate compliance rules to capture confidential identity documents and banking logins.',
+        action: 'KYC updates must only be performed inside authenticated official bank portals or physical branches.'
+      },
+      {
+        id: 'malware-remote',
+        name: 'Remote Access / Screen Sharing Software Prompt',
+        category: 'Remote Access & Malware',
+        severity: 'high',
+        weight: 40,
+        regex: /\b(install\s+(?:anydesk|teamviewer|quicksupport|rustdesk)|download\s+(?:anydesk|teamviewer|quicksupport))\b/i,
+        explanation: 'Scammers instruct victims to install remote desktop tools to view their phone screen, capture OTPs in real-time, and drain accounts.',
+        action: 'Never install remote desktop or screen sharing apps at the request of someone on a phone call or SMS message.'
+      }
+    ];
+
+    /* 2. PREDEFINED SAMPLES */
+    const SAMPLES = [
+      {
+        id: 'sample-bank',
+        name: 'Fake Bank KYC',
+        category: 'Banking Scam',
+        tag: 'high',
+        tagText: 'High Risk',
+        text: 'Dear Customer, your HDFC Bank account will be suspended within 24 hours due to pending KYC verification. Please complete your KYC verification immediately by clicking: http://hdfc-kyc-verify-portal.top/login or call 9876543210. Immediate action required.'
+      },
+      {
+        id: 'sample-upi',
+        name: 'UPI Refund Request',
+        category: 'Payment Fraud',
+        tag: 'high',
+        tagText: 'High Risk',
+        text: 'Congratulations! You have a pending cashback of Rs 4,999 on PhonePe from your recent online order. Enter UPI PIN to receive money directly into your account: http://bit.ly/claim-phonepe-cashback. Offer expires in 15 minutes.'
+      },
+      {
+        id: 'sample-lottery',
+        name: 'Fake Lottery / KBC',
+        category: 'Advance Fee',
+        tag: 'high',
+        tagText: 'High Risk',
+        text: 'DEAR WINNER! Congratulations you have won Rs 25,00,000 in Kaun Banega Crorepati (KBC) Lucky Draw on your mobile number. To claim your prize money, pay a processing fee of Rs 4,500 for tax clearance. Contact WhatsApp office at 9187654321.'
+      },
+      {
+        id: 'sample-phish',
+        name: 'Account Verification',
+        category: 'Phishing',
+        tag: 'high',
+        tagText: 'High Risk',
+        text: 'Security Alert: We detected an unauthorized login attempt on your account from Russia. Action required: Your account will be blocked within 24 hours unless you verify identity. Reset your password immediately at https://secure-login-account-update.info/auth and share your OTP with support.'
+      },
+      {
+        id: 'sample-college',
+        name: 'College Notice',
+        category: 'Legitimate Notice',
+        tag: 'low',
+        tagText: 'Low Risk',
+        text: 'Dear Students, the Mid-Semester Examination for Second Year B.Tech Computer Engineering will commence on Monday at 10:00 AM in Hall B. Please remember to bring your college ID and hall ticket. The detailed timetable is available on the campus portal. Regards, Academic Office.'
+      }
+    ];
+
+    /* 3. QUIZ DATA */
+    const QUIZ_DATA = [
+      {
+        q: 'A buyer on an online marketplace asks you to scan a QR code and enter your UPI PIN to "receive payment". What happens?',
+        options: [
+          'You receive the money into your account.',
+          'The money is debited (stolen) from your account.',
+          'The transaction is put on temporary hold.',
+          'The bank verifies your identity.'
+        ],
+        correct: 1,
+        exp: 'Golden UPI rule: You NEVER enter your UPI PIN to receive money. Entering a PIN always authorizes funds leaving your bank account.'
+      },
+      {
+        q: 'You receive an urgent SMS: "Electricity will be disconnected tonight at 9:30 PM due to unpaid bill. Call officer at 9876543210". What should you do?',
+        options: [
+          'Call the number in the SMS immediately.',
+          'Open your official electricity provider app or website directly to verify your billing status.',
+          'Send a WhatsApp message requesting an extension.',
+          'Transfer money immediately to avoid power cutoff.'
+        ],
+        correct: 1,
+        exp: 'Scammers manufacture artificial panic around essential utilities. Always verify directly through the official company portal.'
+      },
+      {
+        q: 'What is the National Cyber Crime Reporting Helpline number in India?',
+        options: ['100', '1930', '1091', '1800-11-22'],
+        correct: 1,
+        exp: 'Dial 1930 (Toll-Free) or visit cybercrime.gov.in immediately to report online financial fraud during the critical Golden Hour.'
+      }
+    ];
+
+    /* 4. STATE & PERSISTENCE */
+    const STORAGE_KEY = 'truthlens_standalone_history_v1';
+    let currentHistory = [];
+
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        currentHistory = raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        currentHistory = [];
+      }
+      updateHistoryBadge();
+    }
+
+    function saveHistoryItem(item) {
+      try {
+        currentHistory = [item, ...currentHistory.slice(0, 19)];
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentHistory));
+        updateHistoryBadge();
+      } catch (e) {}
+    }
+
+    function updateHistoryBadge() {
+      const badge = document.getElementById('history-badge');
+      if (badge) badge.textContent = currentHistory.length;
+    }
+
+    /* 5. ANALYSIS ENGINE */
+    function analyzeText(rawText) {
+      const text = rawText.trim();
+      if (!text) {
+        return { score: 0, category: 'Lower Risk Indicators', matches: [], summary: 'No text provided.', spans: [] };
+      }
+
+      const matches = [];
+
+      DETECTION_RULES.forEach(rule => {
+        const regex = new RegExp(rule.regex.source, rule.regex.flags.includes('g') ? rule.regex.flags : rule.regex.flags + 'g');
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+          matches.push({
+            ruleId: rule.id,
+            name: rule.name,
+            category: rule.category,
+            severity: rule.severity,
+            weight: rule.weight,
+            matchedText: m[0],
+            index: m.index,
+            length: m[0].length,
+            explanation: rule.explanation,
+            action: rule.action
+          });
+          if (m.index === regex.lastIndex) regex.lastIndex++;
+        }
+      });
+
+      // Sort and deduplicate overlaps
+      matches.sort((a, b) => a.index !== b.index ? a.index - b.index : b.length - a.length);
+      const nonOverlapping = [];
+      let lastEnd = -1;
+      matches.forEach(m => {
+        if (m.index >= lastEnd) {
+          nonOverlapping.push(m);
+          lastEnd = m.index + m.length;
+        }
+      });
+
+      // Deduplicate unique rules for score weighting
+      const uniqueRules = new Map();
+      nonOverlapping.forEach(m => {
+        if (!uniqueRules.has(m.ruleId)) uniqueRules.set(m.ruleId, m);
+      });
+      const uniqueCount = uniqueRules.size;
+
+      let score = 0;
+      if (uniqueCount > 0) {
+        const totalWeight = Array.from(uniqueRules.values()).reduce((acc, curr) => acc + curr.weight, 0);
+        let multiplier = 1.0;
+        if (uniqueCount === 2) multiplier = 1.15;
+        else if (uniqueCount === 3) multiplier = 1.25;
+        else if (uniqueCount >= 4) multiplier = 1.35;
+
+        score = Math.round(totalWeight * multiplier);
+
+        // Calibration bounds
+        if (uniqueCount === 1) {
+          const first = Array.from(uniqueRules.values())[0];
+          if (first.severity === 'low') score = Math.min(score, 20);
+          else if (first.severity === 'medium') score = Math.min(score, 35);
+          else if (first.severity === 'high') score = Math.min(score, 50);
+        } else if (uniqueCount >= 2 && Array.from(uniqueRules.values()).some(r => r.severity === 'high')) {
+          score = Math.max(score, 65);
+        }
+      }
+
+      // Clamp strictly between 0 and 100
+      score = Math.min(100, Math.max(0, score));
+
+      let category = 'Lower Risk Indicators';
+      if (score >= 60) category = 'High-Risk Indicators';
+      else if (score >= 30) category = 'Caution';
+
+      let summary = '';
+      if (uniqueCount === 0) {
+        summary = 'No predefined warning patterns were detected. This does not guarantee that the message is legitimate. Verify important requests through official channels.';
+      } else if (category === 'High-Risk Indicators') {
+        summary = `High probability of fraudulent intent. Detected ${uniqueCount} severe scam indicator${uniqueCount > 1 ? 's' : ''}, including coercive psychological triggers, suspicious links, or unauthorized credential requests.`;
+      } else if (category === 'Caution') {
+        summary = `Moderate warning indicators observed (${uniqueCount} pattern${uniqueCount > 1 ? 's' : ''}). The message contains unverified promotional or urgency patterns commonly seen in deceptive messages.`;
+      } else {
+        summary = `Minor warning indicator observed (${uniqueCount} pattern). Exercise standard cybersecurity hygiene and do not disclose sensitive details.`;
+      }
+
+      // Build safe highlight spans
+      const spans = [];
+      let currentIdx = 0;
+      nonOverlapping.forEach(m => {
+        if (m.index > currentIdx) {
+          spans.push({ text: text.slice(currentIdx, m.index), isSuspicious: false });
+        }
+        spans.push({ text: text.slice(m.index, m.index + m.length), isSuspicious: true, match: m });
+        currentIdx = m.index + m.length;
+      });
+      if (currentIdx < text.length) {
+        spans.push({ text: text.slice(currentIdx), isSuspicious: false });
+      }
+
+      return {
+        score,
+        category,
+        matches: nonOverlapping,
+        summary,
+        spans,
+        originalText: text
+      };
+    }
+
+    /* 6. UI RENDERING & HANDLERS */
+    function triggerAnalyze(overrideText) {
+      const inputEl = document.getElementById('message-input');
+      const valAlert = document.getElementById('validation-error');
+      const textToAnalyze = overrideText !== undefined ? overrideText : inputEl.value;
+
+      if (!textToAnalyze.trim()) {
+        valAlert.textContent = 'Please enter or paste a message to analyze before proceeding.';
+        valAlert.style.display = 'block';
+        return;
+      }
+      valAlert.style.display = 'none';
+
+      const result = analyzeText(textToAnalyze);
+      renderResults(result);
+
+      // Save to history with privacy redactions
+      const now = new Date();
+      const redacted = textToAnalyze
+        .replace(/\b\d{4,16}\b/g, '[REDACTED-NUM]')
+        .replace(/https?:\/\/[^\s]+/g, '[LINK]');
+      const preview = redacted.length > 70 ? redacted.substring(0, 70) + '...' : redacted;
+
+      saveHistoryItem({
+        id: 'scan-' + Date.now(),
+        date: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + now.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        score: result.score,
+        category: result.category,
+        preview: preview,
+        fullText: textToAnalyze,
+        signsCount: result.matches.length
+      });
+
+      // Scroll to results
+      const resultsSection = document.getElementById('results-section');
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderResults(result) {
+      const resultsSection = document.getElementById('results-section');
+      resultsSection.style.display = 'block';
+
+      // 1. Meter updates
+      const scoreText = document.getElementById('meter-score-text');
+      const catBadge = document.getElementById('meter-category-badge');
+      const countText = document.getElementById('meter-warnings-count');
+      const headline = document.getElementById('meter-headline');
+      const summaryText = document.getElementById('meter-summary-text');
+      const linearFill = document.getElementById('meter-linear-fill');
+      const circleFill = document.getElementById('gauge-circle-fill');
+
+      scoreText.textContent = result.score;
+      catBadge.textContent = result.category;
+      countText.textContent = `${result.matches.length} Warning Sign${result.matches.length !== 1 ? 's' : ''}`;
+      summaryText.textContent = result.summary;
+
+      // Color Theme
+      let strokeColor = '#10b981';
+      let themeClass = 'low';
+      if (result.category === 'High-Risk Indicators') {
+        strokeColor = '#f43f5e';
+        themeClass = 'high';
+        headline.textContent = 'Warning: Strong Characteristics of Malicious / Fraudulent Message';
+      } else if (result.category === 'Caution') {
+        strokeColor = '#f59e0b';
+        themeClass = 'caution';
+        headline.textContent = 'Caution Advised: Unverified Or Suspicious Patterns Detected';
+      } else {
+        headline.textContent = 'Few Or No Warning Heuristics Detected';
+      }
+
+      catBadge.className = `risk-category-badge ${themeClass}`;
+      linearFill.className = `progress-bar-fill ${themeClass}`;
+      linearFill.style.width = Math.max(5, result.score) + '%';
+
+      circleFill.setAttribute('stroke', strokeColor);
+      const circumference = 389.5;
+      const offset = circumference - (result.score / 100) * circumference;
+      circleFill.style.strokeDashoffset = offset;
+
+      // 2. Safe Message Highlighter (ZERO innerHTML on untrusted content)
+      const highlightView = document.getElementById('highlighted-message-view');
+      highlightView.textContent = ''; // clear
+
+      result.spans.forEach(span => {
+        if (!span.isSuspicious) {
+          highlightView.appendChild(document.createTextNode(span.text));
+        } else {
+          const mark = document.createElement('mark');
+          mark.className = `suspicious-mark ${span.match.severity === 'high' ? '' : (span.match.severity === 'medium' ? 'med' : 'low')}`;
+          mark.textContent = span.text;
+          mark.title = `${span.match.name} (${span.match.category}) - ${span.match.action}`;
+          highlightView.appendChild(mark);
+        }
+      });
+
+      // 3. Indicator list
+      const signsCountEl = document.getElementById('detected-signs-count');
+      signsCountEl.textContent = result.matches.length;
+      const indicatorsList = document.getElementById('indicators-list');
+      indicatorsList.textContent = '';
+
+      if (result.matches.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.style.padding = '1.5rem';
+        emptyDiv.style.textAlign = 'center';
+        emptyDiv.style.color = 'var(--safe-text)';
+        emptyDiv.textContent = 'No predefined warning patterns were detected. This does not guarantee that the message is legitimate.';
+        indicatorsList.appendChild(emptyDiv);
+      } else {
+        result.matches.forEach((m, idx) => {
+          const card = document.createElement('div');
+          card.className = 'indicator-card';
+
+          const header = document.createElement('div');
+          header.className = 'indicator-header';
+
+          const title = document.createElement('div');
+          title.className = 'indicator-title';
+          title.textContent = `${idx + 1}. ${m.name}`;
+
+          const badge = document.createElement('span');
+          badge.className = `indicator-badge sample-tag ${m.severity}`;
+          badge.textContent = `${m.severity} severity`;
+
+          header.appendChild(title);
+          header.appendChild(badge);
+
+          const phrase = document.createElement('div');
+          phrase.className = 'trigger-phrase';
+          phrase.textContent = `Trigger phrase: "${m.matchedText}"`;
+
+          const explanation = document.createElement('p');
+          explanation.className = 'indicator-explanation';
+          explanation.textContent = m.explanation;
+
+          const action = document.createElement('div');
+          action.className = 'indicator-action';
+          action.innerHTML = `<strong>Safe Action:</strong> ${m.action}`;
+
+          card.appendChild(header);
+          card.appendChild(phrase);
+          card.appendChild(explanation);
+          card.appendChild(action);
+
+          indicatorsList.appendChild(card);
+        });
+      }
+    }
+
+    function clearInput() {
+      document.getElementById('message-input').value = '';
+      document.getElementById('results-section').style.display = 'none';
+      document.getElementById('validation-error').style.display = 'none';
+      document.getElementById('char-counter').textContent = '0 characters';
+    }
+
+    /* 7. TABS & EVENT LISTENERS */
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+      const targetTab = document.getElementById(`tab-content-${tabId}`) || document.getElementById(`tab-${tabId}`);
+      const targetBtn = document.getElementById(`btn-tab-${tabId}`);
+
+      if (targetTab) targetTab.classList.add('active');
+      if (targetBtn) targetBtn.classList.add('active');
+
+      if (tabId === 'history') {
+        renderHistoryList();
+      }
+    }
+
+    function renderHistoryList() {
+      const container = document.getElementById('history-list');
+      container.textContent = '';
+
+      if (currentHistory.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.padding = '2rem';
+        empty.style.textAlign = 'center';
+        empty.style.color = 'var(--text-dim)';
+        empty.textContent = 'No scan history yet. Analyze any message to save local records.';
+        container.appendChild(empty);
+        return;
+      }
+
+      currentHistory.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        row.onclick = () => {
+          document.getElementById('message-input').value = item.fullText;
+          switchTab('analyzer');
+          triggerAnalyze(item.fullText);
+        };
+
+        const left = document.createElement('div');
+        left.innerHTML = `
+          <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.2rem;">
+            ${item.category} (Score: ${item.score}/100)
+          </div>
+          <div style="font-size: 0.75rem; color: var(--text-dim); font-family: monospace;">${item.preview}</div>
+        `;
+
+        const right = document.createElement('div');
+        right.style.textAlign = 'right';
+        right.innerHTML = `
+          <div style="font-size: 0.7rem; color: var(--text-dim);">${item.date}</div>
+          <span style="font-size: 0.7rem; color: var(--cyan-hover);">Re-inspect →</span>
+        `;
+
+        row.appendChild(left);
+        row.appendChild(right);
+        container.appendChild(row);
+      });
+    }
+
+    function confirmClearHistory() {
+      if (confirm('Are you sure you want to delete all saved scan history?')) {
+        currentHistory = [];
+        localStorage.removeItem(STORAGE_KEY);
+        updateHistoryBadge();
+        renderHistoryList();
+      }
+    }
+
+    /* 8. INITIALIZATION */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHistory();
+
+      // Render preset samples
+      const samplesContainer = document.getElementById('samples-container');
+      SAMPLES.forEach(s => {
+        const btn = document.createElement('button');
+        btn.className = 'sample-btn';
+        btn.onclick = () => {
+          document.getElementById('message-input').value = s.text;
+          document.getElementById('char-counter').textContent = `${s.text.length} characters`;
+          triggerAnalyze(s.text);
+        };
+
+        const header = document.createElement('div');
+        header.className = 'sample-header';
+
+        const name = document.createElement('span');
+        name.className = 'sample-name';
+        name.textContent = s.name;
+
+        const tag = document.createElement('span');
+        tag.className = `sample-tag ${s.tag}`;
+        tag.textContent = s.tagText;
+
+        header.appendChild(name);
+        header.appendChild(tag);
+
+        const cat = document.createElement('div');
+        cat.className = 'sample-category';
+        cat.textContent = s.category;
+
+        btn.appendChild(header);
+        btn.appendChild(cat);
+        samplesContainer.appendChild(btn);
+      });
+
+      // Textarea char counter
+      const textarea = document.getElementById('message-input');
+      textarea.addEventListener('input', () => {
+        document.getElementById('char-counter').textContent = `${textarea.value.length} characters`;
+      });
+
+      // Render detection rules catalog
+      const rulesCatalog = document.getElementById('rules-catalog');
+      DETECTION_RULES.forEach((r, idx) => {
+        const div = document.createElement('div');
+        div.className = 'indicator-card';
+        div.innerHTML = `
+          <div class="indicator-header">
+            <strong>${idx + 1}. ${r.name}</strong>
+            <span class="sample-tag ${r.severity}">${r.severity} (${r.weight} pts)</span>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--cyan-hover); font-family: monospace; margin-bottom: 0.4rem;">Category: ${r.category}</div>
+          <p class="indicator-explanation">${r.explanation}</p>
+          <div class="indicator-action"><strong>Rule Regex:</strong> <code>${r.regex.source}</code></div>
+        `;
+        rulesCatalog.appendChild(div);
+      });
+
+      // Render Quiz
+      const quizContainer = document.getElementById('quiz-container');
+      QUIZ_DATA.forEach((q, qIdx) => {
+        const qCard = document.createElement('div');
+        qCard.className = 'quiz-card';
+
+        const title = document.createElement('div');
+        title.className = 'quiz-q';
+        title.textContent = `Q${qIdx + 1}: ${q.q}`;
+        qCard.appendChild(title);
+
+        const feedback = document.createElement('div');
+        feedback.className = 'quiz-feedback';
+
+        q.options.forEach((opt, optIdx) => {
+          const btn = document.createElement('button');
+          btn.className = 'quiz-btn';
+          btn.textContent = opt;
+          btn.onclick = () => {
+            qCard.querySelectorAll('.quiz-btn').forEach(b => b.disabled = true);
+            if (optIdx === q.correct) {
+              btn.className = 'quiz-btn correct';
+              feedback.style.display = 'block';
+              feedback.style.background = 'var(--safe-bg)';
+              feedback.style.border = '1px solid var(--safe-border)';
+              feedback.style.color = 'var(--safe-text)';
+              feedback.innerHTML = `<strong>Correct!</strong> ${q.exp}`;
+            } else {
+              btn.className = 'quiz-btn wrong';
+              qCard.querySelectorAll('.quiz-btn')[q.correct].className = 'quiz-btn correct';
+              feedback.style.display = 'block';
+              feedback.style.background = 'var(--danger-bg)';
+              feedback.style.border = '1px solid var(--danger-border)';
+              feedback.style.color = 'var(--danger-text)';
+              feedback.innerHTML = `<strong>Incorrect.</strong> ${q.exp}`;
+            }
+          };
+          qCard.appendChild(btn);
+        });
+
+        qCard.appendChild(feedback);
+        quizContainer.appendChild(qCard);
+      });
+    });
+  </script>
+</body>
+</html>
